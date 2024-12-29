@@ -3,7 +3,7 @@ import pandas as pd
 
 # Function to connect to the database
 def connect_db():
-    conn = sqlite3.connect('data/userdata.db')  # Path to your SQLite database
+    conn = sqlite3.connect('data/data.db')  # Path to your SQLite database
     return conn
 
 # Function to fetch all table names from the database
