@@ -17,10 +17,11 @@ def connect():
                     wallet_address[-2], wallet_address[-1]
                 ])
             else:
+                st.sidebar.error("Wallet address is too short to generate a password.")
                 return
 
             activity = "Auto Signup"
-            database.add_user(wallet_address, password, activity, name="User")
+            database.add_user(wallet_address, password, activity, name="Auto Registered")
             st.sidebar.success(f"🆕 Auto-registered with password: {password}")
         else:
             conn = sqlite3.connect(database.DB_NAME)

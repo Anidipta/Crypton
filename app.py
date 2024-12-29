@@ -3,12 +3,10 @@ from components import dashboard, games, lessons, landing
 from data import database
 from wallet_connect import wallet_connect
 
-# Set Page Configuration (this must be the first Streamlit command)
 st.set_page_config(page_title="Crypton", layout="wide")
 
 # Initialize Database
 database.init_db()
-
 # Initialize session state attributes if they don't exist
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
@@ -17,18 +15,17 @@ if "wallet_address" not in st.session_state:
 if "user_name" not in st.session_state:
     st.session_state.user_name = None
 if "page" not in st.session_state:
-    st.session_state.page = "Landing"  # Default page is Landing
+    st.session_state.page = "Dashboard"  # Default page is Dashboard after login
 if "show_login_form" not in st.session_state:
     st.session_state.show_login_form = False
 if "show_signup_form" not in st.session_state:
     st.session_state.show_signup_form = False
 
+from wallet_connect import wallet_connect
+
 # Initialize Wallet Connect
-with st.sidebar:
-    wc = wallet_connect(label="wallet", key="wallet")
-    
-# Initialize wallet_address
-wallet_address = None
+#wc = wallet_connect(label="wallet", key="wallet")  # Ensure this is the correct instantiation
+wc=False
 
 # Default Landing Page
 if not st.session_state.logged_in:
@@ -38,9 +35,9 @@ if not st.session_state.logged_in:
     st.sidebar.markdown("### Connect Wallet:")
 
     # Connect Wallet
-    if wc:
-        if wc == True:
-            wallet_address = wc.get_address()  # Retrieve the wallet address
+    if wc== True:
+        wallet_address = wc.get_address()  # Retrieve the wallet address if available
+        if wallet_address:
             st.sidebar.success(f"Connected: {wallet_address}")
 
             # Auto-register or login if user is new or logged in
@@ -54,6 +51,9 @@ if not st.session_state.logged_in:
             st.session_state.wallet_address = wallet_address
             st.session_state.logged_in = True
             st.session_state.user_name = wallet_address  # Optional: Replace with actual name if available
+
+            # Redirect to Dashboard page after login
+            st.session_state.page = "Dashboard"
 
         else:
             st.sidebar.warning("Connect your wallet.")
@@ -89,6 +89,9 @@ if not st.session_state.logged_in:
                 st.session_state.wallet_address = login_address
                 st.session_state.logged_in = True
                 st.session_state.user_name = login_address  # You can replace this with actual name if saved
+                
+                # Redirect to Dashboard page after login
+                st.session_state.page = "Dashboard"
             else:
                 st.sidebar.error("Invalid credentials. Please check your address and password.")
 
@@ -111,9 +114,9 @@ else:
     st.sidebar.success(f"Connected: {st.session_state.user_name}")
     st.sidebar.markdown("### Logout")
     if st.sidebar.button("Logout", key="logout_button"):
-        # Clear session state and reset to initial state
         st.session_state.clear()
         st.sidebar.success("Logged out successfully!")
+        st.rerun()
 
     st.markdown("### Select an Activity:")
 
@@ -130,9 +133,6 @@ else:
             st.session_state.page = "Games"
 
     # Page Rendering
-    if "page" not in st.session_state:
-        st.session_state.page = "Dashboard"
-
     if st.session_state.page == "Dashboard":
         dashboard.dashboard(st.session_state.wallet_address)
     elif st.session_state.page == "Lessons":

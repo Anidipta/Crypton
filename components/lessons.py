@@ -1,7 +1,12 @@
 import streamlit as st
+import base64
+from io import BytesIO
+import matplotlib.pyplot as plt
 from data.database import update_activity_progress, get_user_progress
+import numpy as np
+from PIL import Image, ImageDraw, ImageFont
+import plotly.graph_objects as go
 
-# Lesson content database
 LESSONS = {
     1: {
         "title": "Introduction to Blockchain",
@@ -165,130 +170,221 @@ LESSONS = {
     }
 }
 
-def display_progress_bar(current_lesson, current_section, total_sections):
-    progress = current_section / total_sections
-    st.progress(progress)
+def create_certificate(lesson_number, wallet_address):
+    """Create a certificate as a PIL Image"""
+    # Create a new image with a white background
+    width = 800
+    height = 600
+    image = Image.new('RGB', (width, height), 'white')
+    draw = ImageDraw.Draw(image)
+    
+    # Add decorative border
+    draw.rectangle([(20, 20), (width-20, height-20)], outline='#4ecdc4', width=2)
+    
+    # Add certificate content
+    title_text = "Certificate of Completion"
+    lesson_text = f"Lesson {lesson_number}: {LESSONS[lesson_number]['title']}"
+    completion_text = "has successfully completed"
+    date_text = "Date: " + st.session_state.get('current_date', '')
+    wallet_text = f"Wallet: {wallet_address[:6]}...{wallet_address[-4:]}"
+    
+    # Add text to image
+    # Note: In production, you'd need to specify proper font paths
+    draw.text((width//2, 100), title_text, fill='#333333', anchor="mm")
+    draw.text((width//2, 200), lesson_text, fill='#4ecdc4', anchor="mm")
+    draw.text((width//2, 300), completion_text, fill='#333333', anchor="mm")
+    draw.text((width//2, 400), wallet_text, fill='#666666', anchor="mm")
+    draw.text((width//2, 500), date_text, fill='#666666', anchor="mm")
+    
+    return image
+
+def get_certificate_download_link(image):
+    """Generate a download link for the certificate"""
+    buffered = BytesIO()
+    image.save(buffered, format="PNG")
+    img_str = base64.b64encode(buffered.getvalue()).decode()
+    href = f'<a href="data:image/png;base64,{img_str}" download="certificate.png">Download Certificate</a>'
+    return href
+
+def create_blockchain_visualization():
+    """Create an interactive blockchain visualization using Plotly"""
+    fig = go.Figure()
+    
+    # Create blocks
+    for i in range(4):
+        fig.add_trace(go.Scatter(
+            x=[i, i+0.8, i+0.8, i, i],
+            y=[0, 0, 1, 1, 0],
+            fill="toself",
+            fillcolor='rgba(78, 205, 196, 0.2)',
+            line=dict(color='#4ecdc4'),
+            name=f'Block {i}',
+            hoverinfo='text',
+            text=f'Block {i}'
+        ))
+        
+        # Add arrows between blocks
+        if i < 3:
+            fig.add_annotation(
+                x=i+0.9,
+                y=0.5,
+                ax=i+1.1,
+                ay=0.5,
+                xref='x',
+                yref='y',
+                axref='x',
+                ayref='y',
+                text='',
+                showarrow=True,
+                arrowhead=2,
+                arrowsize=1.5,
+                arrowwidth=2,
+                arrowcolor='#4ecdc4'
+            )
+    
+    fig.update_layout(
+        showlegend=False,
+        plot_bgcolor='rgba(0,0,0,0)',
+        paper_bgcolor='rgba(0,0,0,0)',
+        xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+        yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+        margin=dict(l=20, r=20, t=20, b=20)
+    )
+    
+    return fig
+
+def display_interactive_content(section):
+    """Display interactive content based on section"""
+    st.markdown(f"### {section['title']}")
+    
+    # Add interactive visualizations based on content
+    if "blockchain" in section['title'].lower():
+        st.plotly_chart(create_blockchain_visualization(), use_container_width=True)
+    
+    # Display content with enhanced formatting
     st.markdown(f"""
-        <div style='text-align: center; color: #666;'>
-            Section {current_section} of {total_sections}
+        <div style='background-color: rgba(40, 40, 40, 0.9); 
+                    padding: 20px; 
+                    border-radius: 8px; 
+                    border: 1px solid #4ecdc4;'>
+            {section['content']}
         </div>
     """, unsafe_allow_html=True)
+    
+    # Add interactive elements
+    if "characteristics" in section['content'].lower():
+        for char in ["Decentralized", "Immutable", "Transparent", "Secure"]:
+            if st.button(f"Learn more about {char}", key=f"learn_{char}"):
+                st.info(f"Detailed explanation about {char} characteristic would appear here.")
 
-def display_completion_certificate(lesson_number, wallet_address):
-    st.markdown(f"""
-        <div style='background-color: rgba(30, 30, 30, 0.9); padding: 20px; border-radius: 10px; text-align: center;
-             border: 2px solid; border-image: linear-gradient(45deg, #ff6b6b, #4ecdc4) 1;'>
-            <h2 style='color: #4ecdc4;'>🎉 Congratulations!</h2>
-            <p style='color: #fff;'>You've completed Lesson {lesson_number}: {LESSONS[lesson_number]['title']}</p>
-            <p style='color: #888;'>Wallet Address: {wallet_address[:6]}...{wallet_address[-4:]}</p>
-            <div style='background-color: rgba(40, 40, 40, 0.9); padding: 10px; border-radius: 5px; margin-top: 10px;'>
-                <p style='color: #4ecdc4;'>✅ Achievement Unlocked: {LESSONS[lesson_number]['emoji']} {LESSONS[lesson_number]['title']} Master</p>
+def display_progress_chart(progress_data):
+    """Display an interactive progress chart"""
+    fig = go.Figure()
+    
+    fig.add_trace(go.Bar(
+        x=list(progress_data.keys()),
+        y=list(progress_data.values()),
+        marker_color='#4ecdc4'
+    ))
+    
+    fig.update_layout(
+        title="Your Learning Progress",
+        xaxis_title="Sections",
+        yaxis_title="Completion %",
+        plot_bgcolor='rgba(0,0,0,0)',
+        paper_bgcolor='rgba(0,0,0,0)'
+    )
+    
+    st.plotly_chart(fig, use_container_width=True)
+
+def display_progress_bar(lesson_number, current_section, total_sections):
+    """
+    Display a stylized progress bar for lesson progression
+    
+    Args:
+        lesson_number (int): Current lesson number
+        current_section (int): Current section number
+        total_sections (int): Total number of sections in the lesson
+    """
+    # Calculate progress percentage
+    progress = (current_section / total_sections) * 100
+    
+    # Create progress bar container with custom styling
+    st.markdown("""
+        <style>
+            .progress-container {
+                background-color: rgba(30, 30, 30, 0.9);
+                padding: 20px;
+                border-radius: 8px;
+                margin: 20px 0;
+                border: 1px solid #4ecdc4;
+            }
+            .progress-stats {
+                color: #ffffff;
+                margin-bottom: 10px;
+                display: flex;
+                justify-content: space-between;
+            }
+            .progress-bar {
+                width: 100%;
+                height: 10px;
+                background-color: rgba(78, 205, 196, 0.2);
+                border-radius: 5px;
+                overflow: hidden;
+            }
+            .progress-fill {
+                height: 100%;
+                background: linear-gradient(90deg, #4ecdc4, #556270);
+                transition: width 0.3s ease;
+            }
+        </style>
+        
+        <div class="progress-container">
+            <div class="progress-stats">
+                <span>Lesson {lesson_number} Progress</span>
+                <span>{current_section}/{total_sections} Sections</span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" style="width: {progress}%;"></div>
             </div>
         </div>
     """, unsafe_allow_html=True)
-
-def handle_navigation():
-    # Get current state
-    current_lesson = st.session_state.current_lesson
-    current_section = st.session_state.current_section
-    total_sections = len(LESSONS[current_lesson]['sections'])
-    
-    col1, col2, col3 = st.columns([1, 2, 1])
-    
-    with col1:
-        if current_section > 0:
-            if st.button("← Previous", key=f"prev_{current_lesson}_{current_section}", use_container_width=True):
-                st.session_state.current_section -= 1
-                st.rerun()
-    
-    with col3:
-        if current_section < total_sections - 1:
-            if st.button("Next →", key=f"next_{current_lesson}_{current_section}", use_container_width=True):
-                st.session_state.current_section += 1
-                st.rerun()
-
-def render_quiz(quiz, lesson_number, section_idx, wallet_address):
-    st.markdown("### 📝 Knowledge Check")
-    
-    for idx, question in enumerate(quiz):
-        st.markdown(f"""
-            <div style='background-color: rgba(40, 40, 40, 0.9); padding: 15px; border-radius: 5px; margin: 10px 0;
-                 border: 1px solid; border-image: linear-gradient(45deg, #ff6b6b, #4ecdc4) 1;'>
-                <p style='color: #fff; font-weight: bold;'>{question['question']}</p>
-            </div>
-        """, unsafe_allow_html=True)
-        
-        answer = st.radio(
-            "Select your answer:",
-            question['options'],
-            key=f"quiz_{lesson_number}_{section_idx}_{idx}"
-        )
-        
-        if st.button("Check Answer", key=f"check_{lesson_number}_{section_idx}_{idx}"):
-            if answer == question['options'][question['correct']]:
-                st.success("✅ Correct! Well done!")
-                progress_percentage = ((section_idx + 1) * 100) // len(LESSONS[lesson_number]['sections'])
-                update_activity_progress(
-                    wallet_address=wallet_address,
-                    activity_type="lesson",
-                    sl_no=lesson_number,
-                    completion=progress_percentage,
-                    points=10
-                )
-            else:
-                st.error("❌ Try again!")
 
 def lessons(wallet_address):
-    # Custom styling
+    # Apply custom styling
     st.markdown("""
         <style>
             .stApp {
                 color: #ffffff;
             }
-            .lesson-card {
-                background-color: rgba(30, 30, 30, 0.9);
-                padding: 20px;
-                border-radius: 10px;
-                border: 2px solid;
-                border-image: linear-gradient(45deg, #ff6b6b, #4ecdc4) 1;
-                margin: 10px 0;
-                transition: transform 0.2s;
-            }
-            .lesson-card:hover {
-                transform: translateY(-2px);
-            }
-            .section-content {
-                background-color: rgba(40, 40, 40, 0.9);
-                padding: 20px;
-                border-radius: 8px;
-                margin: 10px 0;
-                border: 1px solid;
-                border-image: linear-gradient(45deg, #ff6b6b, #4ecdc4) 1;
-                color: #ffffff;
-            }
+            
             .stButton button {
                 color: white;
                 border: none;
+                padding: 10px 20px;
+                border-radius: 5px;
+                transition: all 0.3s ease;
             }
-            .stProgress > div > div {
-                background-color: #4ecdc4;
+            .stButton button:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 4px 12px rgba(78, 205, 196, 0.2);
             }
         </style>
     """, unsafe_allow_html=True)
 
     if 'logged_in' in st.session_state and st.session_state.logged_in:
-        st.title("📚 Blockchain Learning Path")
-        st.markdown("### Your Journey to Blockchain Mastery")
-
+        st.title("🎓 Interactive Blockchain Learning Path")
+        
         # Get user progress
         progress = get_user_progress(wallet_address, "lesson")
         
-        # Initialize session state for lesson navigation
+        # Initialize session states
         if 'current_lesson' not in st.session_state:
             st.session_state.current_lesson = 1
             st.session_state.current_section = 0
+            st.session_state.current_date = st.date_input("", value=None)
 
-        # Lesson selection
+        # Display progress overview
         col1, col2 = st.columns([3, 1])
         with col1:
             lesson_choice = st.selectbox(
@@ -301,20 +397,23 @@ def lessons(wallet_address):
         with col2:
             current_progress = progress.get('current_progress', 0)
             st.markdown(f"""
-                <div style='padding: 20px; text-align: center; background-color: rgba(30, 30, 30, 0.9); 
-                     border-radius: 10px; border: 2px solid; border-image: linear-gradient(45deg, #ff6b6b, #4ecdc4) 1;'>
+                <div style='padding: 20px; text-align: center; 
+                     background-color: rgba(30, 30, 30, 0.9); 
+                     border-radius: 10px; 
+                     border: 2px solid #4ecdc4;'>
                     <h4 style='color: #4ecdc4;'>Progress</h4>
                     <h2 style='color: #ffffff;'>{current_progress}%</h2>
                 </div>
             """, unsafe_allow_html=True)
 
-        # Display lesson content
+        # Display interactive lesson content
         current_lesson = LESSONS[lesson_choice]
+        
         st.markdown(f"""
             <div class='lesson-card'>
                 <h2 style='color: #4ecdc4;'>{current_lesson['emoji']} {current_lesson['title']}</h2>
-                <p style='color: #ffffff;'>Number of sections: {len(current_lesson['sections'])}</p>
-                <p style='color: #ffffff;'>Points available: {len(current_lesson['sections']) * 10}</p>
+                <p style='color: #ffffff;'>Sections: {len(current_lesson['sections'])}</p>
+                <p style='color: #ffffff;'>Points: {len(current_lesson['sections']) * 10}</p>
             </div>
         """, unsafe_allow_html=True)
 
@@ -332,41 +431,73 @@ def lessons(wallet_address):
             len(current_lesson['sections'])
         )
 
-        # Display section content
-        st.markdown(f"""
-            <div class='section-content'>
-                <h3 style='color: #4ecdc4;'>{current_section['title']}</h3>
-                {current_section['content']}
-            </div>
-        """, unsafe_allow_html=True)
+        # Display interactive content
+        display_interactive_content(current_section)
 
-        # Display quiz
+        # Display quiz with enhanced UI
         if 'quiz' in current_section:
-            render_quiz(
-                current_section['quiz'],
-                lesson_choice,
-                st.session_state.current_section,
-                wallet_address
-            )
+            st.markdown("### 📝 Knowledge Check")
+            for idx, question in enumerate(current_section['quiz']):
+                st.markdown(f"""
+                    <div style='background-color: rgba(40, 40, 40, 0.9); 
+                         padding: 15px; 
+                         border-radius: 5px; 
+                         margin: 10px 0;
+                         border: 1px solid #4ecdc4;'>
+                        <p style='color: #fff; font-weight: bold;'>{question['question']}</p>
+                    </div>
+                """, unsafe_allow_html=True)
+                
+                answer = st.radio(
+                    "Select your answer:",
+                    question['options'],
+                    key=f"quiz_{lesson_choice}_{st.session_state.current_section}_{idx}"
+                )
+                
+                if st.button("Submit Answer", key=f"check_{lesson_choice}_{st.session_state.current_section}_{idx}"):
+                    if answer == question['options'][question['correct']]:
+                        st.success("✅ Excellent! You got it right!")
+                        progress_percentage = ((st.session_state.current_section + 1) * 100) // len(current_lesson['sections'])
+                        update_activity_progress(
+                            wallet_address=wallet_address,
+                            activity_type="lesson",
+                            sl_no=lesson_choice,
+                            completion=progress_percentage,
+                            points=10
+                        )
+                    else:
+                        st.error("❌ Not quite right. Try again!")
 
-        # Navigation buttons
-        handle_navigation()
+        # Navigation and completion
+        col1, col2, col3 = st.columns([1, 2, 1])
+        
+        with col1:
+            if st.session_state.current_section > 0:
+                if st.button("← Previous", use_container_width=True):
+                    st.session_state.current_section -= 1
+                    st.rerun()
+        
+        with col3:
+            if st.session_state.current_section < len(current_lesson['sections']) - 1:
+                if st.button("Next →", use_container_width=True):
+                    st.session_state.current_section += 1
+                    st.rerun()
+            elif current_progress == 100:
+                if st.button("🎉 Complete & Get Certificate", use_container_width=True):
+                    certificate = create_certificate(lesson_choice, wallet_address)
+                    st.image(certificate, caption="Your Certificate of Completion")
+                    st.markdown(get_certificate_download_link(certificate), unsafe_allow_html=True)
 
-        # Check if lesson is completed
+        # Display completion certificate if lesson is finished
         if current_progress == 100:
-            display_completion_certificate(lesson_choice, wallet_address)
-
-    else:
-        st.warning("🔒 Please connect your wallet to access the lessons.")
-        st.markdown("""
-            <div style='text-align: center; padding: 20px; background-color: rgba(30, 30, 30, 0.9); 
-                 border-radius: 10px; border: 2px solid; border-image: linear-gradient(45deg, #ff6b6b, #4ecdc4) 1;'>
-                <h3 style='color: #4ecdc4;'>Why Learn with Us?</h3>
-                <ul style='list-style-type: none; color: #ffffff;'>
-                    <li>🎮 Interactive Learning</li>
-                    <li>🏆 Earn While You Learn</li>
-                    <li>📊 Track Your Progress</li>
-                    <li>🎓 Expert-Curated Content</li>
-                </ul>
-            </div>
-        """, unsafe_allow_html=True)
+            st.markdown("""
+                <div style='background-color: rgba(30, 30, 30, 0.9); 
+                     padding: 20px; 
+                     border-radius: 10px; 
+                     text-align: center;
+                     border: 2px solid; 
+                     border-image: linear-gradient(45deg, #ff6b6b, #4ecdc4) 1;'>
+                    <h2 style='color: #4ecdc4;'>🎉 Congratulations!</h2>
+                    <p style='color: #fff;'>You've mastered this lesson. Keep up the great work!</p>
+                </div>
+            """, unsafe_allow_html=True)
