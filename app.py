@@ -1,5 +1,5 @@
 import streamlit as st
-from components import dashboard, games, lessons
+from components import dashboard, games, lessons, landing
 from data import database
 from wallet_connect import wallet_connect
 
@@ -17,13 +17,23 @@ if "wallet_address" not in st.session_state:
 if "user_name" not in st.session_state:
     st.session_state.user_name = None
 if "page" not in st.session_state:
-    st.session_state.page = "Dashboard"
+    st.session_state.page = "Landing"  # Default page is Landing
+if "show_login_form" not in st.session_state:
+    st.session_state.show_login_form = False
+if "show_signup_form" not in st.session_state:
+    st.session_state.show_signup_form = False
 
 # Initialize Wallet Connect
-wc = wallet_connect(label="wallet", key="wallet")
+with st.sidebar:
+    wc = wallet_connect(label="wallet", key="wallet")
+    
+# Initialize wallet_address
+wallet_address = None
 
-# Sidebar - Wallet Connect, Login, and Signup (only visible if not logged in)
+# Default Landing Page
 if not st.session_state.logged_in:
+    landing.landing()  # Display the landing page before login/signup
+
     st.sidebar.title("🔗 Navigation")
     st.sidebar.markdown("### Connect Wallet:")
 
@@ -98,14 +108,13 @@ if not st.session_state.logged_in:
                 database.add_user(signup_address, signup_password, "Manual Signup", signup_name)
                 st.sidebar.success("Account created successfully! Please login.")
 else:
-    # If the user is logged in, show the navigation for activities (Dashboard, Games, Lessons)
+    st.sidebar.success(f"Connected: {st.session_state.user_name}")
     st.sidebar.markdown("### Logout")
     if st.sidebar.button("Logout", key="logout_button"):
         # Clear session state and reset to initial state
         st.session_state.clear()
         st.sidebar.success("Logged out successfully!")
 
-    st.markdown(f"### Welcome, {st.session_state.user_name}!")
     st.markdown("### Select an Activity:")
 
     col1, col2, col3 = st.columns(3)
@@ -130,4 +139,3 @@ else:
         lessons.lessons(st.session_state.wallet_address)
     elif st.session_state.page == "Games":
         games.games(st.session_state.wallet_address)
-
