@@ -3,8 +3,6 @@ from components import dashboard, games, lessons, landing
 from data import database
 from wallet_connect import wallet_connect
 
-st.set_page_config(page_title="Crypton", layout="wide")
-
 # Initialize Database
 database.init_db()
 # Initialize session state attributes if they don't exist
@@ -21,11 +19,11 @@ if "show_login_form" not in st.session_state:
 if "show_signup_form" not in st.session_state:
     st.session_state.show_signup_form = False
 
-from wallet_connect import wallet_connect
-
+st.set_page_config(page_title="Crypton", layout="wide")
+with st.sidebar:
 # Initialize Wallet Connect
-#wc = wallet_connect(label="wallet", key="wallet")  # Ensure this is the correct instantiation
-wc=False
+    wc = wallet_connect(label="wallet", key="wallet")  # Ensure this is the correct instantiation
+#wc=False
 
 # Default Landing Page
 if not st.session_state.logged_in:
