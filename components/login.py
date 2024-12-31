@@ -5,42 +5,41 @@ import sqlite3
 from datetime import datetime
 
 def connect():
+    """Handles wallet connection and ensures data is saved in the database."""
     wc = wallet_connect(label="wallet", key="wallet")
     if wc:
-        wallet_address = wc
-        st.sidebar.success(f"Connected: {wallet_address}")
+        if wc == True:
+            wallet_address = wc.get_address()  # Retrieve the wallet address
+            st.sidebar.success(f"Connected: {wallet_address}")
 
-        if not database.check_user_exists(wallet_address):
-            if len(wallet_address) >= 6:
-                password = ''.join([
-                    wallet_address[-6], wallet_address[-5],
-                    wallet_address[-2], wallet_address[-1]
-                ])
+            # Check if user already exists in the database
+            if not database.check_user_exists(wallet_address):
+                # Auto-generate password and register the user
+                password = ''.join([wallet_address[-6], wallet_address[-5], wallet_address[-2], wallet_address[-1]])
+                activity = "Auto Signup"
+                database.add_user(wallet_address, password, activity, name="Auto Registered")
+
+                st.sidebar.success(f"🆕 Auto-registered with password: {password}")
             else:
-                st.sidebar.error("Wallet address is too short to generate a password.")
-                return
+                # Update the activity for existing user
+                conn = sqlite3.connect(database.DB_NAME)
+                cursor = conn.cursor()
+                cursor.execute("""
+                    UPDATE log_book SET 
+                    datetime = ?, 
+                    activity = ? 
+                    WHERE metamask_account = ?
+                """, (datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "Wallet Reconnected", wallet_address))
+                conn.commit()
+                conn.close()
+                st.sidebar.success("Welcome back! Wallet reconnected.")
 
-            activity = "Auto Signup"
-            database.add_user(wallet_address, password, activity, name="Auto Registered")
-            st.sidebar.success(f"🆕 Auto-registered with password: {password}")
+            # Save user data in session state
+            st.session_state.wallet_address = wallet_address
+            st.session_state.logged_in = True
+            st.session_state.user_name = wallet_address  # Optional: Replace with actual name if available
         else:
-            conn = sqlite3.connect(database.DB_NAME)
-            cursor = conn.cursor()
-            cursor.execute("""
-                UPDATE log_book SET 
-                datetime = ?, 
-                activity = ? 
-                WHERE metamask_account = ?
-            """, (datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "Wallet Reconnected", wallet_address))
-            conn.commit()
-            conn.close()
-            st.sidebar.success("Welcome back! Wallet reconnected.")
-
-        st.session_state.wallet_address = wallet_address
-        st.session_state.logged_in = True
-        st.session_state.user_name = wallet_address
-    else:
-        st.sidebar.warning("Please connect your wallet.")
+            st.sidebar.warning("Please connect your wallet.")
 
 def login():
     """Renders the login form."""
