@@ -33,7 +33,7 @@ if not st.session_state.logged_in:
     st.sidebar.markdown("### Connect Wallet:")
 
     # Connect Wallet
-    if wc== True:
+    if wc and hasattr(wc, 'get_address'):
         wallet_address = wc.get_address()  # Retrieve the wallet address if available
         if wallet_address:
             st.sidebar.success(f"Connected: {wallet_address}")
