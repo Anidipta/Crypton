@@ -44,3 +44,7 @@ Crypton is ideal for:
 5. A progress dashboard to monitor achievements and unlock new challenges. 📈  
 
 Crypton is more than just a game—it’s an immersive journey into the future of technology and finance. Learn, play, and master blockchain concepts with Crypton! 🌟
+
+
+### Contributor
+[Anidipta Pal](https://github.com/Anidipta)
